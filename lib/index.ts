@@ -1,10 +1,10 @@
 import { Map } from 'immutable';
 
+
 class Typejson {
-    do(source :any, rules: any) :[any, any] {
-        let rulePaths :string[] = Object.keys(rules)
-        rulePaths.forEach(function (path :string) {
-            let rule :any =rules[path]
+    do(source :any, rules: iRule[]) :[any, any] {
+        rules.forEach(function (rule: iRule) {
+            let path = rule.data.path
             let dataPath = path
             if (source[dataPath] === undefined && source[dataPath] === null) {
                 throw new Error(`typejson: ${dataPath} is undefined` )
@@ -12,16 +12,22 @@ class Typejson {
             switch (rule.constructor) {
                 case TString:
                     let stringRule : TString = (rule as TString)
-                        let sValue :string = source[dataPath]
-                        if (stringRule.data.notEmtpy) {
-                            if (sValue.length == 0) {
-                                throw new Error(`typejson: ${dataPath} can not be empty string` )
-                            }
+                    let sValue :string = source[dataPath]
+                    if (sValue === undefined) {
+                        throw new Error("typejson: " + dataPath + " must be a string" )
+                    }
+                    if (stringRule.data.notEmtpy) {
+                        if (sValue.length == 0) {
+                            throw new Error(`typejson: ${dataPath} can not be empty string` )
                         }
+                    }
                     break
                 case TNumber:
                     let numberRule : TNumber = (rule as TNumber)
                     let nValue :number = source[dataPath]
+                    if (nValue === undefined) {
+                        throw new Error(`typejson: ${dataPath} can not be number` )
+                    }
                     if (numberRule.data.min.enable) {
                         if (nValue < numberRule.data.min.min) {
                             throw new Error(`${dataPath} can not less than ${rule.data.min.min}` )
@@ -34,10 +40,18 @@ class Typejson {
                     }
                     break
                 case TBoolean:
+                    // let bRule : TArray = (rule as TBoolean)
+                    let bValue :[] = source[dataPath]
+                    if (bValue === undefined) {
+                        throw new Error(`typejson: ${dataPath} can not be boolean` )
+                    }
                     break
                 case TArray:
                     let arrayRule : TArray = (rule as TArray)
                     let aValue :[] = source[dataPath]
+                    if (aValue === undefined) {
+                        throw new Error(`typejson: ${dataPath} can not be array` )
+                    }
                     if (arrayRule.data.minlen.enable) {
                         if (aValue.length < arrayRule.data.minlen.minlen) {
                             throw new Error(`${dataPath}.length can not less than ${rule.data.minlen.minlen}` )
@@ -50,6 +64,7 @@ class Typejson {
                     }
                     break
                 case TObject:
+
                     break
                 default:
                     throw new Error(`typejson: tjson.do(rule) ,rule["${path}"] is error type`)
@@ -67,29 +82,26 @@ const typeDict :any = {
     object: "object",
     boolean: "boolean",
 }
-interface DataMin {
-    enable: boolean
-    min:number
-}
-interface DataMax {
-    enable: boolean
-    max:number
-}
-interface DataMinLen {
-    enable: boolean
-    minlen:number
-}
-interface DataMaxLen {
-    enable: boolean
-    maxlen:number
-}
 interface Data {
     _type :string
+    path :string
     notEmtpy: boolean
-    min: DataMin
-    max: DataMax
-    minlen: DataMinLen
-    maxlen: DataMaxLen
+    min:  {
+        enable: boolean
+        min:number
+    }
+    max: {
+        enable: boolean
+        max:number
+    }
+    minlen: {
+        enable: boolean
+        minlen:number
+    }
+    maxlen: {
+        enable: boolean
+        maxlen:number
+    }
     eg: string
     name: string
     note: string
@@ -97,6 +109,7 @@ interface Data {
 function makeData(type: string) :Data {
     return {
         _type: type,
+        path: "",
         notEmtpy: false,
         min: {
             enable: false,
@@ -140,8 +153,9 @@ class TType {
 }
 class TString extends TType{
     data: Data
-    constructor() {
+    constructor(path :string) {
         let data :Data = makeData(typeDict.string)
+        data.path = path
         super(data)
         this.data = data
     }
@@ -152,8 +166,9 @@ class TString extends TType{
 }
 class TNumber extends TType {
     data: Data
-    constructor() {
+    constructor(path :string) {
         let data :Data = makeData(typeDict.number)
+        data.path = path
         super(data)
         this.data = data
     }
@@ -182,8 +197,9 @@ class TNumber extends TType {
 
 class TArray extends TType{
     data: Data
-    constructor() {
+    constructor(path :string) {
         let data :Data = makeData(typeDict.array)
+        data.path = path
         super(data)
         this.data = data
     }
@@ -212,16 +228,18 @@ class TArray extends TType{
 }
 class TObject extends TType {
     data: Data
-    constructor() {
+    constructor(path :string) {
         let data: Data = makeData(typeDict.object)
+        data.path = path
         super(data)
         this.data = data
     }
 }
 class TBoolean extends TType {
     data: Data
-    constructor() {
+    constructor(path :string) {
         let data: Data = makeData(typeDict.object)
+        data.path = path
         super(data)
         this.data = data
     }
@@ -234,21 +252,22 @@ interface Itrule {
     boolean: TBoolean
 }
 class TRule {
-    string():TString {
-        return new TString()
+    string(path :string):TString {
+        return new TString(path)
     }
-    number():TNumber {
-        return new TNumber()
+    number(path :string):TNumber {
+        return new TNumber(path)
     }
-    boolean():TBoolean {
-        return new TBoolean()
+    boolean(path :string):TBoolean {
+        return new TBoolean(path)
     }
-    array():TArray {
-        return new TArray()
+    array(path :string):TArray {
+        return new TArray(path)
     }
-    object():TObject {
-        return new TObject()
+    object(path :string):TObject {
+        return new TObject(path)
     }
 }
+type iRule = TString | TType | TNumber | TBoolean | TObject | TArray
 const trule = new TRule()
-export { tjson, trule }
+export { tjson, trule, iRule }
